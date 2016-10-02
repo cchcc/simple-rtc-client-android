@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">SimpleRTC</string>
+    <string name="go">GO</string>
+    <string name="room_name">Room Name</string>
+</resources>
