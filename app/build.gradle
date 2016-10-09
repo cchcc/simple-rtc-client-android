@@ -3,12 +3,12 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion "24.0.0"
+    compileSdkVersion 24
+    buildToolsVersion "24.0.3"
     defaultConfig {
         applicationId "cchcc.simplertc"
         minSdkVersion 16
-        targetSdkVersion 23
+        targetSdkVersion 24
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -22,6 +22,14 @@ android {
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
     }
+    packagingOptions {
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/LICENSE'
+    }
+}
+
+kapt {
+    generateStubs = true
 }
 
 dependencies {
@@ -29,10 +37,22 @@ dependencies {
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    compile 'com.android.support:appcompat-v7:23.4.0'
+    compile 'com.android.support:appcompat-v7:24.2.1'
     testCompile 'junit:junit:4.12'
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile(
+            [group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.8.3'],
+//            [group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.8.3'],
+            [group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.8.3']
+    )
+    compile 'com.fasterxml.jackson.module:jackson-module-kotlin:2.8.3'
     compile 'com.squareup.okhttp3:okhttp:3.4.1'
+    compile 'com.squareup.okhttp3:okhttp-ws:3.4.1'
+    kapt 'com.google.dagger:dagger-compiler:2.7'
+    compile 'com.google.dagger:dagger:2.7'
+    provided 'org.glassfish:javax.annotation:10.0-b28'
+    compile 'io.reactivex:rxandroid:1.2.1'
+
 }
 repositories {
     mavenCentral()
