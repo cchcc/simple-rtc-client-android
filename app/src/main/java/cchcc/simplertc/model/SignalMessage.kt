@@ -16,11 +16,11 @@ sealed class SignalMessage(val type: String) {
 
     class chat(val message: String) : SignalMessage("chat")
 
-    class rtcOffer() : SignalMessage("rtcOffer")
+    class rtcOffer(val sdpType: String, val sdpDescription: String) : SignalMessage("rtcOffer")
 
-    class rtcAnswer() : SignalMessage("rtcAnswer")
+    class rtcAnswer(val sdpType: String, val sdpDescription: String) : SignalMessage("rtcAnswer")
 
-    class rtcCandidate() : SignalMessage("rtcCandidate")
+    class rtcCandidate(val label: Int, val id: String, val candidate: String) : SignalMessage("rtcCandidate")
 
     companion object {
 
@@ -36,9 +36,9 @@ sealed class SignalMessage(val type: String) {
                 "startAsCaller" -> startAsCaller((map["ice"] as List<Map<String, String>>).map(::ICEServer))
                 "startAsCallee" -> startAsCallee((map["ice"] as List<Map<String, String>>).map(::ICEServer))
                 "chat" -> chat(map["message"] as String)
-                "rtcOffer" -> rtcOffer()
-                "rtcAnswer" -> rtcAnswer()
-                "rtcCandidate" -> rtcCandidate()
+                "rtcOffer" -> rtcOffer(map["sdpType"] as String, map["sdpDescription"] as String)
+                "rtcAnswer" -> rtcAnswer(map["sdpType"] as String, map["sdpDescription"] as String)
+                "rtcCandidate" -> rtcCandidate(map["label"] as Int, map["id"] as String, map["candidate"] as String)
                 else -> null
             }
         } catch (e: Exception) {
