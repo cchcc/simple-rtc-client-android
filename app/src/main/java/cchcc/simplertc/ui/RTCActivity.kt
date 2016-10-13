@@ -1,22 +1,25 @@
 package cchcc.simplertc.ui
 
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
+import android.view.View
+import android.view.Window
+import android.view.WindowManager
 import cchcc.simplertc.R
+import cchcc.simplertc.ext.simpleAlert
+import cchcc.simplertc.ext.toast
 import cchcc.simplertc.inject.DaggerRTCViewModelComponent
 import cchcc.simplertc.inject.PerRTCActivity
 import cchcc.simplertc.inject.RTCViewModelModule
 import cchcc.simplertc.inject.RTCWebSocketComponent
 import cchcc.simplertc.viewmodel.RTCViewModel
-import rx.Subscription
+import kotlinx.android.synthetic.main.act_rtc.*
 import rx.android.schedulers.AndroidSchedulers
 import rx.schedulers.Schedulers
 import javax.inject.Inject
 
 @PerRTCActivity
-class RTCActivity : AppCompatActivity() {
+class RTCActivity : BaseActivity() {
     @Inject lateinit var viewModel: RTCViewModel
-    private var messageSubscription: Subscription? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,38 +27,60 @@ class RTCActivity : AppCompatActivity() {
         val roomName = intent.getStringExtra("roomName")
 
         DaggerRTCViewModelComponent.builder()
-            .rTCWebSocketComponent(rtcComponents.remove(roomName))
-            .rTCViewModelModule(RTCViewModelModule(roomName))
-            .build()
-            .inject(this)
+                .rTCWebSocketComponent(rtcComponents.remove(roomName))
+                .rTCViewModelModule(RTCViewModelModule())
+                .build()
+                .inject(this)
+
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN
+                or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                or WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
 
         setContentView(R.layout.act_rtc)
 
-        // bind view model event
-        messageSubscription = viewModel.messageObservable
+        // bind event from ViewModel
+        viewModel.eventObservable
                 .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread()).subscribe({
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({
+                    when (it) {
+                        is RTCViewModel.Event.Connected -> toast("connected")
+                        is RTCViewModel.Event.Chat -> {}
+                    }
+                }, error@{
+                    simpleAlert(it.toString())
+                }, terminated@{
+                    toast("terminated")
+                }).addToComposite()
 
-        }, {
+        viewModel.onCreate(this, glv_video)
+    }
 
-        }, {
+    override fun onResume() {
+        super.onResume()
+        glv_video.onResume()
+    }
 
-        })
-
-
-
-        viewModel.onCreate()
+    override fun onPause() {
+        glv_video.onPause()
+        super.onPause()
     }
 
     override fun onDestroy() {
-        messageSubscription?.unsubscribe()
-        messageSubscription = null
+        viewModel.terminate()
         viewModel.onDestroy()
         super.onDestroy()
     }
 
     companion object {
         val rtcComponents: MutableMap<String/*room name*/, RTCWebSocketComponent> by lazy {
-            mutableMapOf<String, RTCWebSocketComponent>() }
+            mutableMapOf<String, RTCWebSocketComponent>()
+        }
     }
 }

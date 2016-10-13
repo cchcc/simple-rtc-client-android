@@ -1,6 +1,5 @@
 package cchcc.simplertc.model
 
-import android.util.Log
 import cchcc.simplertc.ext.toJsonString
 import cchcc.simplertc.ext.toSignalMessage
 import cchcc.simplertc.inject.PerConnection
@@ -10,22 +9,28 @@ import okhttp3.ws.WebSocketCall
 import okhttp3.ws.WebSocketListener
 import okio.Buffer
 import rx.Observable
-import rx.subjects.BehaviorSubject
+import rx.subjects.ReplaySubject
 import java.io.IOException
 import javax.inject.Inject
 
 @PerConnection
 class RTCWebSocket {
 
-    var roomName: String? = null
+    private var roomName: String? = null
     private var webSocket: WebSocket? = null
     private var createWebSocketCall: (()->WebSocketCall)? = null
-    private val receiveSubject: BehaviorSubject<SignalMessage> by lazy {
-        BehaviorSubject.create<SignalMessage>()
+    private val receiveSubject: ReplaySubject<SignalMessage> by lazy {
+        ReplaySubject.create<SignalMessage>()
     }
 
+    val isConnected: Boolean
+        get() = webSocket != null
+
     val observable: Observable<SignalMessage> by lazy {
-        receiveSubject.doOnSubscribe { createWebSocketCall!!.invoke().enqueue(webSocketListener) }
+        receiveSubject.doOnSubscribe {
+            if (webSocket == null)
+                createWebSocketCall!!.invoke().enqueue(webSocketListener)
+        }
     }
 
     private val webSocketListener: WebSocketListener by lazy {
@@ -49,13 +54,12 @@ class RTCWebSocket {
 
             override fun onMessage(resBody: ResponseBody?) {
                 val msgString = resBody?.string()
-                Log.i("WebSocketListener", "onMessage : $msgString")
                 val msg = msgString?.toSignalMessage()
                 if (msg != null)
                     receiveSubject.onNext(msg)
                 else {
                     close()
-                    receiveSubject.onError(IllegalStateException("unexpected type : $msgString"))
+                    receiveSubject.onError(Exception("unexpected type : $msgString"))
                 }
             }
         }
@@ -71,7 +75,6 @@ class RTCWebSocket {
 
     fun send(message: SignalMessage) {
         webSocket?.sendMessage(RequestBody.create(WebSocket.TEXT, message.toJsonString()))
-        Log.i("RTCWebSocket", "send : ${message.toJsonString()}")
     }
 
     fun close() {

@@ -1,9 +1,12 @@
 package cchcc.simplertc.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.EditorInfo
@@ -28,10 +31,17 @@ import rx.android.schedulers.AndroidSchedulers
 import rx.schedulers.Schedulers
 import java.io.IOException
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
-    private var subscriptionConnection: Subscription? = null
-    private var checkServerIsOnSubscription: Subscription? = null
+    private var checkCameraPermission: Boolean = false
+        get() = if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA)
+                    , RC_PERMISSION_CAMERA)
+            false
+        }
+        else
+            true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,12 +63,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkServerIsOn() {
-        checkServerIsOnSubscription?.unsubscribe()
-
         val webSocketCall = WebSocketCall.create(App.component.okHttpClient()
                 , Request.Builder().url(G.SIGNAL_SERVER_ADDR).build())
 
-        checkServerIsOnSubscription = Observable.create<Boolean> { subscriber ->
+        Observable.create<Boolean> { subscriber ->
             val serverStatusIs = { isOn: Boolean ->
                 subscriber.onNext(isOn)
                 subscriber.onCompleted()
@@ -92,7 +100,7 @@ class MainActivity : AppCompatActivity() {
                 tv_server_status.text = "OFF"
                 tv_server_status.setTextColor(Color.RED)
             }
-        }
+        }.addToComposite()
     }
 
     private fun connectToServerWithRoomName() {
@@ -102,6 +110,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        if (!checkCameraPermission)
+            return
+
         preferences.save { it.putString(G.PFK_ROOM_NAME, roomName) }
 
         val rtcWebSocketComponent = DaggerRTCWebSocketComponent.builder()
@@ -109,7 +120,8 @@ class MainActivity : AppCompatActivity() {
                 .rTCWebSocketModule(RTCWebSocketModule(G.SIGNAL_SERVER_ADDR, roomName))
                 .build()
 
-        subscriptionConnection = rtcWebSocketComponent.rtcWebSocket().observable
+        var subscription: Subscription? = null
+        subscription = rtcWebSocketComponent.rtcWebSocket().observable
                 .doOnSubscribe { runOnUiThread { showLoading() } }
                 .doOnError { hideLoading() }
                 .doOnNext { hideLoading() }
@@ -120,6 +132,7 @@ class MainActivity : AppCompatActivity() {
                     when (it) {
                         is SignalMessage.roomCreated,
                         is SignalMessage.roomJoined -> startRTC@{
+                            subscription?.unsubscribe()
                             RTCActivity.rtcComponents.put(roomName, rtcWebSocketComponent)
                             startActivity(Intent(this, RTCActivity::class.java)
                                     .putExtra("roomName", roomName))
@@ -131,15 +144,22 @@ class MainActivity : AppCompatActivity() {
                 , { simpleAlert("connection error : ${it.message}") }
                 , { simpleAlert("connection closed") }
         )
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        val permissionAllGranted = grantResults.size == grantResults
+                .filter { it == PackageManager.PERMISSION_GRANTED }.size
+        when(requestCode) {
+            RC_PERMISSION_CAMERA -> if (permissionAllGranted) {
+                connectToServerWithRoomName()
+                checkCameraPermission = true
+            }
+        }
 
     }
 
-    override fun onDestroy() {
-        subscriptionConnection?.unsubscribe()
-        subscriptionConnection = null
-        checkServerIsOnSubscription?.unsubscribe()
-        checkServerIsOnSubscription = null
-        super.onDestroy()
+    companion object {
+        val RC_PERMISSION_CAMERA = 1
     }
-
 }

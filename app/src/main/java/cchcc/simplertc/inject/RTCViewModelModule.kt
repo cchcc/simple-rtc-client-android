@@ -6,9 +6,8 @@ import dagger.Module
 import dagger.Provides
 
 @Module
-class RTCViewModelModule(val roonName: String) {
+class RTCViewModelModule() {
     @Provides
     @PerRTCActivity
-    fun provideRTCViewModel(rtcWebSocket: RTCWebSocket): RTCViewModel
-            = RTCViewModel(roonName, rtcWebSocket)
+    fun provideRTCViewModel(rtcWebSocket: RTCWebSocket): RTCViewModel = RTCViewModel(rtcWebSocket)
 }

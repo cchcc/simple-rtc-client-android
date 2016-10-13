@@ -6,6 +6,17 @@
     android:layout_height="match_parent"
     tools:context="cchcc.simplertc.ui.RTCActivity">
 
+    <android.opengl.GLSurfaceView
+        android:id="@+id/glv_video"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true">
+
+    </RelativeLayout>
 
 
 </RelativeLayout>
