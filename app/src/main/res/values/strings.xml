@@ -3,4 +3,11 @@
     <string name="go">GO</string>
     <string name="room_name">Room Name</string>
     <string name="ok">OK</string>
+    <string name="sending_message">Sending Message…</string>
+    <string name="send">Send</string>
+    <string name="terminated">Terminated.</string>
+    <string name="waiting">waiting…</string>
+    <string name="are_you_sure_to_quit">Are you sure to quit?</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
 </resources>

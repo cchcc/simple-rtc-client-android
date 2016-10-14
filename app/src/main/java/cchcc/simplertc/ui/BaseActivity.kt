@@ -9,6 +9,16 @@ open class BaseActivity : AppCompatActivity() {
 
     fun Subscription.addToComposite() = compositeSubscription.add(this)
 
+    override fun onResume() {
+        super.onResume()
+        overridePendingTransition(0, 0)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        overridePendingTransition(0, 0)
+    }
+
     override fun onDestroy() {
         compositeSubscription.clear()
         super.onDestroy()
