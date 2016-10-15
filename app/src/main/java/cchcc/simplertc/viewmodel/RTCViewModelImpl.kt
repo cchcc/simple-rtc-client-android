@@ -2,6 +2,7 @@ package cchcc.simplertc.viewmodel
 
 import android.content.Context
 import android.opengl.GLSurfaceView
+import cchcc.simplertc.RTCAudioManager
 import cchcc.simplertc.inject.PerRTCActivity
 import cchcc.simplertc.model.ChatMessage
 import cchcc.simplertc.model.ICEServer
@@ -11,7 +12,6 @@ import org.webrtc.*
 import rx.Observable
 import rx.Subscription
 import rx.subjects.PublishSubject
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.regex.Pattern
 import javax.inject.Inject
@@ -36,6 +36,7 @@ class RTCViewModelImpl : RTCViewModel {
     private var peerConnection: PeerConnection? = null
     private var remoteRender: VideoRenderer.Callbacks? = null
     private var localRender: VideoRenderer.Callbacks? = null
+    private var rtcAudioManager: RTCAudioManager? = null
 
     @Inject constructor(rtcWebSocket: RTCWebSocket) {
         this.rtcWebSocket = rtcWebSocket
@@ -45,6 +46,7 @@ class RTCViewModelImpl : RTCViewModel {
         PeerConnectionFactory.initializeAndroidGlobals(context, true, true, false)
         VideoRendererGui.setView(glv_video) {}
 
+        rtcAudioManager = RTCAudioManager(context)
         peerConnectionFactory = PeerConnectionFactory()
 
         localMediaStream = peerConnectionFactory.createLocalMediaStream("localMediaStream")
@@ -90,6 +92,7 @@ class RTCViewModelImpl : RTCViewModel {
     }
 
     override fun onDestroy() {
+        rtcAudioManager?.close()
         videoSource?.stop()
         peerConnectionFactory.dispose()
     }
@@ -145,6 +148,8 @@ class RTCViewModelImpl : RTCViewModel {
 
             peerConnection!!.createOffer(sdpObserver, sdpConstraints)
         }
+
+        rtcAudioManager?.init()
     }
 
     private fun receivedRemoteSDP(type: String, sdpDescription: String) {

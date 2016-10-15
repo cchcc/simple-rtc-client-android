@@ -6,10 +6,38 @@
     android:layout_height="match_parent"
     tools:context="cchcc.simplertc.ui.RTCActivity">
 
-    <android.opengl.GLSurfaceView
-        android:id="@+id/glv_video"
+    <RelativeLayout
+        android:id="@+id/rl_video"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+        <android.opengl.GLSurfaceView
+            android:id="@+id/glv_video"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/tv_waiting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:shadowColor="@android:color/black"
+            android:shadowDx="3.0"
+            android:shadowDy="3.0"
+            android:shadowRadius="1.0"
+            android:text="@string/waiting"
+            android:textColor="@android:color/white" />
+
+        <ImageView
+            android:id="@+id/iv_received_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:background="@drawable/ic_send_black"/>
+    </RelativeLayout>
 
     <RelativeLayout
         android:id="@+id/rl_hud"
@@ -18,13 +46,13 @@
 
 
         <RelativeLayout
-            android:id="@+id/rl_top"
+            android:id="@+id/rl_hud_top"
             android:layout_width="match_parent"
             android:layout_height="?android:attr/actionBarSize"
-            android:background="#33ffffff">
+            android:background="#44ffffff">
 
             <TextView
-                android:id="@+id/tv_passed_time"
+                android:id="@+id/tv_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
@@ -42,11 +70,11 @@
         </RelativeLayout>
 
         <LinearLayout
-            android:id="@+id/ll_bottom"
+            android:id="@+id/ll_hud_bottom"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
-            android:background="#33ffffff"
+            android:background="#44ffffff"
             android:orientation="vertical">
 
             <android.support.v7.widget.RecyclerView
@@ -61,21 +89,14 @@
                 android:drawableRight="@drawable/ic_send_black"
                 android:padding="10dp"
                 android:text="@string/sending_message"
-                android:textColor="#666666" />
+                android:textColor="#666666"
+                android:shadowColor="@android:color/white"
+                android:shadowDx="3.0"
+                android:shadowDy="3.0"
+                android:shadowRadius="1.0"
+                />
 
         </LinearLayout>
     </RelativeLayout>
 
-    <TextView
-        android:id="@+id/tv_waiting"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:textColor="@android:color/white"
-        android:shadowColor="@android:color/black"
-        android:shadowDx="3.0"
-        android:shadowDy="3.0"
-        android:shadowRadius="1.0"
-        android:text="@string/waiting"
-        />
 </RelativeLayout>

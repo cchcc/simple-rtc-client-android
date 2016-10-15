@@ -1,17 +1,18 @@
 package cchcc.simplertc.ui
 
-import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
 import android.support.v7.app.AlertDialog
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
-import android.view.View
-import android.view.ViewGroup
-import android.view.Window
-import android.view.WindowManager
+import android.view.*
+import android.view.animation.Animation
+import android.view.animation.AnimationUtils
 import android.widget.EditText
 import cchcc.simplertc.R
+import cchcc.simplertc.ext.inputMethodManager
 import cchcc.simplertc.ext.simpleAlert
+import cchcc.simplertc.ext.startAnimationTada
 import cchcc.simplertc.ext.toast
 import cchcc.simplertc.inject.DaggerRTCViewModelComponent
 import cchcc.simplertc.inject.PerRTCActivity
@@ -20,7 +21,7 @@ import cchcc.simplertc.inject.RTCWebSocketComponent
 import cchcc.simplertc.model.ChatMessage
 import cchcc.simplertc.viewmodel.RTCViewModel
 import kotlinx.android.synthetic.main.act_rtc.*
-import kotlinx.android.synthetic.main.li_chat_message.*
+import kotlinx.android.synthetic.main.li_chat_message.view.*
 import rx.Observable
 import rx.Subscription
 import rx.android.schedulers.AndroidSchedulers
@@ -35,6 +36,21 @@ class RTCActivity : BaseActivity() {
     @Inject lateinit var viewModel: RTCViewModel
     private val chatListAdapter: ChatListAdapter by lazy { ChatListAdapter() }
     private var passedTimeSubscript: Subscription? = null
+    private val fadeOutHudLayoutAnimation: Animation by lazy {
+        AnimationUtils.loadAnimation(this, R.anim.fadeout).apply {
+            fillAfter = true
+            startOffset = 3000
+            setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationRepeat(animation: Animation?) {
+                }
+
+                override fun onAnimationEnd(animation: Animation) = rl_video.bringToFront()
+
+                override fun onAnimationStart(animation: Animation?) {
+                }
+            })
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,30 +82,53 @@ class RTCActivity : BaseActivity() {
             onCreate(this@RTCActivity, glv_video)
         }
 
-        tv_sending_message.setOnClickListener { clickedChatList() }
+        tv_title.text = roomName
+        ll_hud_bottom.visibility = View.INVISIBLE
+        tv_sending_message.setOnClickListener { clickedSendingMessage() }
         bt_terminate.setOnClickListener { clickedTerminate() }
+        rl_video.setOnClickListener { showHudLayoutForaWhile() }
+        iv_received_message.setOnClickListener { showHudLayoutForaWhile() }
         with(rv_chat) {
             layoutManager = LinearLayoutManager(this@RTCActivity)
             adapter = chatListAdapter
         }
+
+        showHudLayoutForaWhile()
+    }
+
+    private fun showHudLayoutForaWhile() {
+        iv_received_message.visibility = View.INVISIBLE
+        rl_hud.bringToFront()
+        rl_hud.alpha = 1.0f
+        rl_hud.startAnimation(fadeOutHudLayoutAnimation)
     }
 
     private fun occurredViewModelEvent(event: RTCViewModel.Event) {
-        when(event) {
+        when (event) {
             is RTCViewModel.Event.Connected -> {
                 tv_waiting.visibility = View.GONE
+                ll_hud_bottom.visibility = View.VISIBLE
                 chatListAdapter.addAndNotify(ChatMessage(Date(), "system", "Start"))
 
                 passedTimeSubscript = Observable.interval(1, TimeUnit.SECONDS).startWith(0)
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe { tv_passed_time.text = "${it/60}:${it%60}" }
-                    .apply { addToComposite() }
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe { tv_title.text = "${String.format("%02d", it / 60)}:${String.format("%02d", it % 60)}" }
+                        .apply { addToComposite() }
             }
-            is RTCViewModel.Event.Chat -> chatListAdapter.addAndNotify(event.message)
+            is RTCViewModel.Event.Chat -> {
+                val mostFrontView = root_rl_rtc.getChildAt(root_rl_rtc.childCount - 1)
+                if (mostFrontView != rl_hud && event.message.sender == "opp") {
+                    iv_received_message.visibility = View.VISIBLE
+                    iv_received_message.startAnimationTada()
+                }
+                chatListAdapter.addAndNotify(event.message)
+            }
         }
     }
 
     private fun terminatedRTC() {
+        tv_sending_message.setOnClickListener(null)
+        tv_sending_message.text = getString(R.string.terminated)
         passedTimeSubscript?.unsubscribe()
         chatListAdapter.addAndNotify(ChatMessage(Date()
                 , "system", getString(R.string.terminated)))
@@ -101,7 +140,7 @@ class RTCActivity : BaseActivity() {
         finish()
     }
 
-    private fun clickedChatList() {
+    private fun clickedSendingMessage() {
         val et_message = EditText(this)
         AlertDialog.Builder(this)
                 .setTitle(R.string.sending_message)
@@ -109,6 +148,7 @@ class RTCActivity : BaseActivity() {
                 .setPositiveButton(R.string.send) { dlg, w ->
                     viewModel.sendChatMessage(et_message.text.toString())
                 }.show()
+        Handler().postDelayed({ inputMethodManager.showSoftInput(et_message, 0) }, 400)
     }
 
     override fun onResume() {
@@ -124,16 +164,15 @@ class RTCActivity : BaseActivity() {
     override fun onDestroy() {
         viewModel.terminate()
         viewModel.onDestroy()
-        startActivity(Intent(this, MainActivity::class.java))
         super.onDestroy()
     }
 
     override fun onBackPressed() {
         AlertDialog.Builder(this)
-            .setMessage(R.string.are_you_sure_to_quit)
-            .setPositiveButton(R.string.yes) { dlg, w -> super.onBackPressed() }
-            .setNegativeButton(R.string.no) { dlg, w -> }
-            .show()
+                .setMessage(R.string.are_you_sure_to_quit)
+                .setPositiveButton(R.string.yes) { dlg, w -> super.onBackPressed() }
+                .setNegativeButton(R.string.no) { dlg, w -> }
+                .show()
     }
 
     inner class ChatListAdapter : RecyclerView.Adapter<ChatListAdapter.ViewHolder>() {
@@ -152,17 +191,16 @@ class RTCActivity : BaseActivity() {
         }
 
         override fun onCreateViewHolder(parent: ViewGroup?, viewType: Int): ViewHolder =
-            ViewHolder(View.inflate(this@RTCActivity, R.layout.li_chat_message, parent))
+                ViewHolder(LayoutInflater.from(this@RTCActivity).inflate(R.layout.li_chat_message, parent, false))
 
         override fun getItemCount(): Int = list.size
 
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) = with(holder) {
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) = with(holder.itemView) {
             val chatMessage = list[position]
-            tv_passed_time.text = chatDateFormat.format(chatMessage.dateTime)
+            tv_date.text = chatDateFormat.format(chatMessage.dateTime)
             tv_sender.text = chatMessage.sender
             tv_message.text = chatMessage.message
         }
-
     }
 
     companion object {

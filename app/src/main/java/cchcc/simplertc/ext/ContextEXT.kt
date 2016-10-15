@@ -3,6 +3,7 @@ package cchcc.simplertc.ext
 import android.app.Service
 import android.content.Context
 import android.content.SharedPreferences
+import android.media.AudioManager
 import android.preference.PreferenceManager
 import android.support.v7.app.AlertDialog
 import android.view.inputmethod.InputMethodManager
@@ -38,3 +39,6 @@ fun Context.hideLoading() {
 
 val Context.inputMethodManager: InputMethodManager
     get() = getSystemService(Service.INPUT_METHOD_SERVICE) as InputMethodManager
+
+val Context.audioManager: AudioManager
+    get() = getSystemService(Context.AUDIO_SERVICE) as AudioManager

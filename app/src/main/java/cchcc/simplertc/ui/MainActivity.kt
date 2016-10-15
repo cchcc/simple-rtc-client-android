@@ -106,7 +106,7 @@ class MainActivity : BaseActivity() {
     private fun connectToServerWithRoomName() {
         val roomName = et_room_name.text.toString()
         if (roomName.isBlank()) {
-            et_room_name.nope()
+            et_room_name.startAnimationNope()
             return
         }
 
@@ -136,7 +136,6 @@ class MainActivity : BaseActivity() {
                             RTCActivity.rtcComponents.put(roomName, rtcWebSocketComponent)
                             startActivity(Intent(this, RTCActivity::class.java)
                                     .putExtra("roomName", roomName))
-                            finish()
                         }
                         is SignalMessage.roomIsFull -> simpleAlert("room \"$roomName\" is full")
                     }
