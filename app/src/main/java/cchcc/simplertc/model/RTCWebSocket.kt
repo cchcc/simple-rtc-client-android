@@ -1,9 +1,7 @@
 package cchcc.simplertc.model
 
-import cchcc.simplertc.inject.PerConnection
 import rx.Observable
 
-@PerConnection
 interface RTCWebSocket {
 
     val isConnected: Boolean

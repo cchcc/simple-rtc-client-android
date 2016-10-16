@@ -10,13 +10,19 @@ import android.support.v4.content.ContextCompat
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.EditorInfo
-import cchcc.simplertc.App
+import android.view.inputmethod.InputMethodManager
 import cchcc.simplertc.G
 import cchcc.simplertc.R
 import cchcc.simplertc.ext.*
-import cchcc.simplertc.inject.DaggerRTCWebSocketComponent
-import cchcc.simplertc.inject.RTCWebSocketModule
+import cchcc.simplertc.inject.Scopes
+import cchcc.simplertc.model.RTCWebSocket
+import cchcc.simplertc.model.RTCWebSocketImpl
 import cchcc.simplertc.model.SignalMessage
+import com.github.salomonbrys.kodein.Kodein
+import com.github.salomonbrys.kodein.android.appKodein
+import com.github.salomonbrys.kodein.instance
+import com.github.salomonbrys.kodein.scopedSingleton
+import com.github.salomonbrys.kodein.with
 import kotlinx.android.synthetic.main.act_main.*
 import okhttp3.Request
 import okhttp3.Response
@@ -63,7 +69,8 @@ class MainActivity : BaseActivity() {
     }
 
     private fun checkServerIsOn() {
-        val webSocketCall = WebSocketCall.create(App.component.okHttpClient()
+
+        val webSocketCall = WebSocketCall.create(appKodein().instance()
                 , Request.Builder().url(G.SIGNAL_SERVER_ADDR).build())
 
         Observable.create<Boolean> { subscriber ->
@@ -115,13 +122,15 @@ class MainActivity : BaseActivity() {
 
         preferences.save { it.putString(G.PFK_ROOM_NAME, roomName) }
 
-        val rtcWebSocketComponent = DaggerRTCWebSocketComponent.builder()
-                .appComponent(App.component)
-                .rTCWebSocketModule(RTCWebSocketModule(G.SIGNAL_SERVER_ADDR, roomName))
-                .build()
+        val roomKodein = Kodein {
+            extend(appKodein())
+            bind<RTCWebSocket>() with scopedSingleton(Scopes.perRoomSocket) {
+                RTCWebSocketImpl(G.SIGNAL_SERVER_ADDR, instance(), roomName)
+            }
+        }
 
         var subscription: Subscription? = null
-        subscription = rtcWebSocketComponent.rtcWebSocket().observable
+        subscription = roomKodein.with(roomName).instance<RTCWebSocket>().observable
                 .doOnSubscribe { runOnUiThread { showLoading() } }
                 .doOnError { hideLoading() }
                 .doOnNext { hideLoading() }
@@ -132,8 +141,8 @@ class MainActivity : BaseActivity() {
                     when (it) {
                         is SignalMessage.roomCreated,
                         is SignalMessage.roomJoined -> startRTC@{
+                            RTCActivity.roomKodeins.put(roomName, roomKodein)
                             subscription?.unsubscribe()
-                            RTCActivity.rtcComponents.put(roomName, rtcWebSocketComponent)
                             startActivity(Intent(this, RTCActivity::class.java)
                                     .putExtra("roomName", roomName))
                         }
@@ -142,7 +151,7 @@ class MainActivity : BaseActivity() {
                 }
                 , { simpleAlert("connection error : ${it.message}") }
                 , { simpleAlert("connection closed") }
-        )
+        ).apply { addToComposite() }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

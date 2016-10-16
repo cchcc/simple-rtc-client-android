@@ -3,7 +3,6 @@ package cchcc.simplertc.viewmodel
 import android.content.Context
 import android.opengl.GLSurfaceView
 import cchcc.simplertc.RTCAudioManager
-import cchcc.simplertc.inject.PerRTCActivity
 import cchcc.simplertc.model.ChatMessage
 import cchcc.simplertc.model.ICEServer
 import cchcc.simplertc.model.RTCWebSocket
@@ -14,9 +13,7 @@ import rx.Subscription
 import rx.subjects.PublishSubject
 import java.util.*
 import java.util.regex.Pattern
-import javax.inject.Inject
 
-@PerRTCActivity
 class RTCViewModelImpl : RTCViewModel {
 
     private val rtcWebSocket: RTCWebSocket
@@ -25,7 +22,7 @@ class RTCViewModelImpl : RTCViewModel {
         PublishSubject.create<RTCViewModel.Event>()
     }
 
-    override val eventObservable: Observable<RTCViewModel.Event> by lazy {
+    override val observable: Observable<RTCViewModel.Event> by lazy {
         eventSubject.asObservable()
     }
 
@@ -38,7 +35,7 @@ class RTCViewModelImpl : RTCViewModel {
     private var localRender: VideoRenderer.Callbacks? = null
     private var rtcAudioManager: RTCAudioManager? = null
 
-    @Inject constructor(rtcWebSocket: RTCWebSocket) {
+    constructor(rtcWebSocket: RTCWebSocket) {
         this.rtcWebSocket = rtcWebSocket
     }
 

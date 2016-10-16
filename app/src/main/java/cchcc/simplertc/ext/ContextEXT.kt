@@ -1,6 +1,5 @@
 package cchcc.simplertc.ext
 
-import android.app.Service
 import android.content.Context
 import android.content.SharedPreferences
 import android.media.AudioManager
@@ -10,6 +9,8 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import cchcc.simplertc.R
 import cchcc.simplertc.ui.LoadingDialog
+import com.github.salomonbrys.kodein.android.appKodein
+import com.github.salomonbrys.kodein.with
 
 fun Context.toast(text: CharSequence, duration: Int = Toast.LENGTH_SHORT): Unit
         = Toast.makeText(this, text, duration).show()
@@ -38,7 +39,7 @@ fun Context.hideLoading() {
 }
 
 val Context.inputMethodManager: InputMethodManager
-    get() = getSystemService(Service.INPUT_METHOD_SERVICE) as InputMethodManager
+    get() = appKodein().with(this).instance()
 
 val Context.audioManager: AudioManager
-    get() = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    get() = appKodein().with(this).instance()

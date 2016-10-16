@@ -2,7 +2,6 @@ package cchcc.simplertc.model
 
 import cchcc.simplertc.ext.toJsonString
 import cchcc.simplertc.ext.toSignalMessage
-import cchcc.simplertc.inject.PerConnection
 import okhttp3.*
 import okhttp3.ws.WebSocket
 import okhttp3.ws.WebSocketCall
@@ -11,10 +10,8 @@ import okio.Buffer
 import rx.Observable
 import rx.subjects.ReplaySubject
 import java.io.IOException
-import javax.inject.Inject
 
-@PerConnection
-class RTCWebSocketImPl : RTCWebSocket {
+class RTCWebSocketImpl : RTCWebSocket {
 
     private var roomName: String? = null
     private var webSocket: WebSocket? = null
@@ -36,7 +33,7 @@ class RTCWebSocketImPl : RTCWebSocket {
     private val webSocketListener: WebSocketListener by lazy {
         object : WebSocketListener {
             override fun onOpen(webSocket: WebSocket, response: Response?) {
-                this@RTCWebSocketImPl.webSocket = webSocket
+                this@RTCWebSocketImpl.webSocket = webSocket
                 send(SignalMessage.room(roomName!!))
             }
 
@@ -65,7 +62,7 @@ class RTCWebSocketImPl : RTCWebSocket {
         }
     }
 
-    @Inject constructor(serverUrl: String, okHttpClient: OkHttpClient, roomName: String) {
+    constructor(serverUrl: String, okHttpClient: OkHttpClient, roomName: String) {
         this.roomName = roomName
 
         createWebSocketCall = {

@@ -24,8 +24,11 @@ class RTCAudioManager(private val context: Context) {
     private var selectedAudioDevice: AudioDevice? = null
     private val audioDevices = HashSet<AudioDevice>()
     private var wiredHeadsetReceiver: BroadcastReceiver? = null
+    private var isInitialized: Boolean = false
 
     fun init() {
+        if (isInitialized)
+            return
         savedAudioMode = audioManager.getMode()
         savedIsSpeakerPhoneOn = audioManager.isSpeakerphoneOn()
         savedIsMicrophoneMute = audioManager.isMicrophoneMute()
@@ -36,13 +39,15 @@ class RTCAudioManager(private val context: Context) {
         audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION)
 
         setMicrophoneMute(false)
-
         updateAudioDeviceState(hasWiredHeadset())
-
         registerForWiredHeadsetIntentBroadcast()
+        isInitialized = true
     }
 
     fun close() {
+        if (!isInitialized)
+            return
+
         unregisterForWiredHeadsetIntentBroadcast()
         setSpeakerphoneOn(savedIsSpeakerPhoneOn)
         setMicrophoneMute(savedIsMicrophoneMute)
