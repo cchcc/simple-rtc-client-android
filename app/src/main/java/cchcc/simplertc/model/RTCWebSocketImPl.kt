@@ -1,7 +1,6 @@
 package cchcc.simplertc.model
 
-import cchcc.simplertc.ext.toJsonString
-import cchcc.simplertc.ext.toSignalMessage
+import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.*
 import okhttp3.ws.WebSocket
 import okhttp3.ws.WebSocketCall
@@ -11,11 +10,12 @@ import rx.Observable
 import rx.subjects.ReplaySubject
 import java.io.IOException
 
-class RTCWebSocketImpl : RTCWebSocket {
+class RTCWebSocketImpl(val objectMapper: ObjectMapper, okHttpClient: OkHttpClient, serverUrl: String,  roomName: String) : RTCWebSocket {
 
-    private var roomName: String? = null
     private var webSocket: WebSocket? = null
-    private var createWebSocketCall: (()->WebSocketCall)? = null
+    private var createWebSocketCall: ()->WebSocketCall = {
+        WebSocketCall.create(okHttpClient, Request.Builder().url(serverUrl).build())
+    }
     private val receiveSubject: ReplaySubject<SignalMessage> by lazy {
         ReplaySubject.create<SignalMessage>()
     }
@@ -23,10 +23,10 @@ class RTCWebSocketImpl : RTCWebSocket {
     override val isConnected: Boolean
         get() = webSocket != null
 
-    override val observable: Observable<SignalMessage> by lazy {
+    override val messageObservable: Observable<SignalMessage> by lazy {
         receiveSubject.doOnSubscribe {
             if (webSocket == null)
-                createWebSocketCall!!.invoke().enqueue(webSocketListener)
+                createWebSocketCall.invoke().enqueue(webSocketListener)
         }
     }
 
@@ -34,7 +34,7 @@ class RTCWebSocketImpl : RTCWebSocket {
         object : WebSocketListener {
             override fun onOpen(webSocket: WebSocket, response: Response?) {
                 this@RTCWebSocketImpl.webSocket = webSocket
-                send(SignalMessage.room(roomName!!))
+                send(SignalMessage.room(roomName))
             }
 
             override fun onPong(payload: Buffer?) {
@@ -62,14 +62,6 @@ class RTCWebSocketImpl : RTCWebSocket {
         }
     }
 
-    constructor(serverUrl: String, okHttpClient: OkHttpClient, roomName: String) {
-        this.roomName = roomName
-
-        createWebSocketCall = {
-            WebSocketCall.create(okHttpClient, Request.Builder().url(serverUrl).build())
-        }
-    }
-
     override fun send(message: SignalMessage) {
         webSocket?.sendMessage(RequestBody.create(WebSocket.TEXT, message.toJsonString()))
     }
@@ -77,5 +69,17 @@ class RTCWebSocketImpl : RTCWebSocket {
     override fun close() {
         webSocket?.close(1000, "bye")
         webSocket = null
+    }
+
+
+    fun SignalMessage.toJsonString(): String = objectMapper.writeValueAsString(this)
+
+    fun String.toSignalMessage(): SignalMessage? = objectMapper.let {
+        try {
+            val type = it.typeFactory.constructType(Map::class.java)
+            SignalMessage.from(it.readValue(this, type))
+        } catch (e: Exception) {
+            null
+        }
     }
 }

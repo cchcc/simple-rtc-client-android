@@ -5,7 +5,7 @@ import rx.Observable
 interface RTCWebSocket {
 
     val isConnected: Boolean
-    val observable: Observable<SignalMessage>
+    val messageObservable: Observable<SignalMessage>
 
     fun send(message: SignalMessage)
     fun close()

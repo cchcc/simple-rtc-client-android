@@ -2,56 +2,43 @@ package cchcc.simplertc.ui
 
 import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
-import android.support.v4.app.ActivityCompat
-import android.support.v4.content.ContextCompat
+import android.support.v7.app.AppCompatActivity
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import cchcc.simplertc.G
 import cchcc.simplertc.R
 import cchcc.simplertc.ext.*
-import cchcc.simplertc.inject.Scopes
 import cchcc.simplertc.model.RTCWebSocket
-import cchcc.simplertc.model.RTCWebSocketImpl
 import cchcc.simplertc.model.SignalMessage
-import com.github.salomonbrys.kodein.Kodein
+import cchcc.simplertc.viewmodel.MainViewModel
+import cchcc.simplertc.viewmodel.RTCViewModel
+import cchcc.simplertc.viewmodel.RTCViewModelImpl
+import com.github.salomonbrys.kodein.*
 import com.github.salomonbrys.kodein.android.appKodein
-import com.github.salomonbrys.kodein.instance
-import com.github.salomonbrys.kodein.scopedSingleton
-import com.github.salomonbrys.kodein.with
+import com.github.salomonbrys.kodein.conf.ConfigurableKodein
 import kotlinx.android.synthetic.main.act_main.*
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody
-import okhttp3.ws.WebSocket
-import okhttp3.ws.WebSocketCall
-import okhttp3.ws.WebSocketListener
-import okio.Buffer
-import rx.Observable
 import rx.Subscription
 import rx.android.schedulers.AndroidSchedulers
 import rx.schedulers.Schedulers
-import java.io.IOException
 
-class MainActivity : BaseActivity() {
+class MainActivity : AppCompatActivity(), KodeinInjected {
 
-    private var checkCameraPermission: Boolean = false
-        get() = if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA)
-                    , RC_PERMISSION_CAMERA)
-            false
-        }
-        else
-            true
+    override val injector = KodeinInjector()
+
+    private val mainViewModel: MainViewModel by instance()
+    private val createRTCWebSocket: (String) -> RTCWebSocket by factory()
+    private var isDestroyedActivity = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.act_main)
+
+        injector.inject(appKodein().instance<Kodein>(MainActivity::class))
+
+        mainViewModel.onCreate(Kodein { extend(appKodein()) })
 
         tv_desc.text = "signal server : ${G.SIGNAL_SERVER_ADDR}"
         with(et_room_name) {
@@ -68,106 +55,87 @@ class MainActivity : BaseActivity() {
         checkServerIsOn()
     }
 
+    override fun onDestroy() {
+        isDestroyedActivity = true
+        super.onDestroy()
+    }
+
     private fun checkServerIsOn() {
-
-        val webSocketCall = WebSocketCall.create(appKodein().instance()
-                , Request.Builder().url(G.SIGNAL_SERVER_ADDR).build())
-
-        Observable.create<Boolean> { subscriber ->
-            val serverStatusIs = { isOn: Boolean ->
-                subscriber.onNext(isOn)
-                subscriber.onCompleted()
-            }
-
-            webSocketCall.enqueue(object : WebSocketListener {
-                override fun onOpen(webSocket: WebSocket?, response: Response?) {
-                    webSocket?.close(1000, "")
-                    serverStatusIs(true)
+        mainViewModel.checkServerIsOn()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnSubscribe {
+                    AnimationUtils.loadAnimation(this, R.anim.clockwise_rotation).apply {
+                        repeatCount = Animation.INFINITE
+                        repeatMode = Animation.RESTART
+                    }.let { tv_server_status.startAnimation(it) }
                 }
-                override fun onPong(payload: Buffer?) {}
-                override fun onClose(code: Int, reason: String?) = serverStatusIs(false)
-                override fun onFailure(e: IOException?, response: Response?) = serverStatusIs(false)
-                override fun onMessage(message: ResponseBody?) {}
-            })
-        }.doOnSubscribe {
-            AnimationUtils.loadAnimation(this, R.anim.clockwise_rotation).apply {
-                repeatCount = Animation.INFINITE
-                repeatMode = Animation.RESTART
-            }.let { tv_server_status.startAnimation(it) }
-        }.doOnUnsubscribe {
-            tv_server_status.clearAnimation()
-            webSocketCall.cancel()
-        }.subscribeOn(Schedulers.io())
-        .observeOn(AndroidSchedulers.mainThread())
-        .subscribe {
-            if (it) {
-                tv_server_status.text = "ON"
-                tv_server_status.setTextColor(Color.GREEN)
-            } else {
-                tv_server_status.text = "OFF"
-                tv_server_status.setTextColor(Color.RED)
-            }
-        }.addToComposite()
+                .doOnTerminate {
+                    if (!isDestroyedActivity)
+                        tv_server_status.clearAnimation()
+                }
+                .subscribe {
+                    if (it) {
+                        tv_server_status.text = "ON"
+                        tv_server_status.setTextColor(Color.GREEN)
+                    } else {
+                        tv_server_status.text = "OFF"
+                        tv_server_status.setTextColor(Color.RED)
+                    }
+                }
     }
 
     private fun connectToServerWithRoomName() {
         val roomName = et_room_name.text.toString()
-        if (roomName.isBlank()) {
+        if (roomName.isEmpty() or roomName.isBlank()) {
             et_room_name.startAnimationNope()
             return
         }
 
-        if (!checkCameraPermission)
-            return
+        checkOrRequestPermissions(Manifest.permission.CAMERA) {
+            preferences.save { putString(G.PFK_ROOM_NAME, roomName) }
 
-        preferences.save { it.putString(G.PFK_ROOM_NAME, roomName) }
+            val rtcWebSocket = createRTCWebSocket(roomName)
+            var subscription: Subscription? = null
+            subscription = rtcWebSocket.messageObservable
+                    .subscribeOn(Schedulers.io())
+                    .unsubscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .doOnSubscribe { showLoading() }
+                    .doOnNext { hideLoading() }
+                    .doOnError { hideLoading() }
+                    .subscribe({
+                        when (it) {
+                            is SignalMessage.roomCreated,
+                            is SignalMessage.roomJoined -> {
+                                subscription?.unsubscribe()
 
-        val roomKodein = Kodein {
-            extend(appKodein())
-            bind<RTCWebSocket>() with scopedSingleton(Scopes.perRoomSocket) {
-                RTCWebSocketImpl(G.SIGNAL_SERVER_ADDR, instance(), roomName)
-            }
-        }
+                                with(appKodein().instance<Kodein>(RTCActivity::class)
+                                        as ConfigurableKodein) {
+                                    clear()
+                                    addExtend(appKodein())
+                                    addConfig {
+                                        bind<RTCViewModel>() with singleton { RTCViewModelImpl(rtcWebSocket) }
+                                    }
+                                }
 
-        var subscription: Subscription? = null
-        subscription = roomKodein.with(roomName).instance<RTCWebSocket>().observable
-                .doOnSubscribe { runOnUiThread { showLoading() } }
-                .doOnError { hideLoading() }
-                .doOnNext { hideLoading() }
-                .doOnCompleted { hideLoading() }
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread()).subscribe(
-                {
-                    when (it) {
-                        is SignalMessage.roomCreated,
-                        is SignalMessage.roomJoined -> startRTC@{
-                            RTCActivity.roomKodeins.put(roomName, roomKodein)
-                            subscription?.unsubscribe()
-                            startActivity(Intent(this, RTCActivity::class.java)
-                                    .putExtra("roomName", roomName))
+                                startActivity(Intent(this, RTCActivity::class.java)
+                                        .putExtra("roomName", roomName))
+                            }
+                            is SignalMessage.roomIsFull -> {
+                                simpleAlert("room \"$roomName\" is full")
+                                subscription?.unsubscribe()
+                            }
                         }
-                        is SignalMessage.roomIsFull -> simpleAlert("room \"$roomName\" is full")
-                    }
-                }
-                , { simpleAlert("connection error : ${it.message}") }
-                , { simpleAlert("connection closed") }
-        ).apply { addToComposite() }
+                    }, {
+                        simpleAlert("${it.message}")
+                    }, { simpleAlert("connection closed") }
+                    )
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        val permissionAllGranted = grantResults.size == grantResults
-                .filter { it == PackageManager.PERMISSION_GRANTED }.size
-        when(requestCode) {
-            RC_PERMISSION_CAMERA -> if (permissionAllGranted) {
-                connectToServerWithRoomName()
-                checkCameraPermission = true
-            }
-        }
-
-    }
-
-    companion object {
-        val RC_PERMISSION_CAMERA = 1
+        requestedPermissionResult(requestCode, permissions, grantResults)
     }
 }

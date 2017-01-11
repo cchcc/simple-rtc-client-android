@@ -1,5 +1,7 @@
 package cchcc.simplertc.ui
 
+import android.content.Context
+import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.os.Handler
 import android.support.v7.app.AlertDialog
@@ -14,15 +16,10 @@ import cchcc.simplertc.ext.inputMethodManager
 import cchcc.simplertc.ext.simpleAlert
 import cchcc.simplertc.ext.startAnimationTada
 import cchcc.simplertc.ext.toast
-import cchcc.simplertc.inject.Scopes
 import cchcc.simplertc.model.ChatMessage
 import cchcc.simplertc.viewmodel.RTCViewModel
-import cchcc.simplertc.viewmodel.RTCViewModelImpl
-import com.github.salomonbrys.kodein.Kodein
-import com.github.salomonbrys.kodein.LazyKodeinAware
-import com.github.salomonbrys.kodein.android.activitySingleton
-import com.github.salomonbrys.kodein.lazy
-import com.github.salomonbrys.kodein.with
+import com.github.salomonbrys.kodein.*
+import com.github.salomonbrys.kodein.android.appKodein
 import kotlinx.android.synthetic.main.act_rtc.*
 import kotlinx.android.synthetic.main.li_chat_message.view.*
 import rx.Observable
@@ -33,16 +30,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-class RTCActivity : BaseActivity(), LazyKodeinAware {
+class RTCActivity : BaseActivity(), KodeinInjected {
+    override val injector: KodeinInjector = KodeinInjector()
 
-    override val kodein = Kodein.lazy {
-        extend(roomKodeins[roomName]!!)
-        roomKodeins.remove(roomName)
-        bind<RTCViewModel>() with activitySingleton { RTCViewModelImpl(with(roomName).instance()) }
-    }
-
-    private val roomName: String by lazy { intent.getStringExtra("roomName") }
-    private val viewModel: RTCViewModel by with(this).instance()
+    private val viewModel: RTCViewModel by instance()
     private val chatListAdapter: ChatListAdapter by lazy { ChatListAdapter() }
     private var passedTimeSubscript: Subscription? = null
     private val fadeOutHudLayoutAnimation: Animation by lazy {
@@ -64,7 +55,7 @@ class RTCActivity : BaseActivity(), LazyKodeinAware {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
+        injector.inject(appKodein().instance<Kodein>(RTCActivity::class))
 
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN
@@ -76,15 +67,21 @@ class RTCActivity : BaseActivity(), LazyKodeinAware {
         setContentView(R.layout.act_rtc)
 
         with(viewModel) {
-            observable.subscribeOn(Schedulers.io())
+            eventObservable.subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(event@{ occurredViewModelEvent(it) }
                             , error@{ simpleAlert(it.toString()) }
                             , terminated@{ terminatedRTC() })
                     .addToComposite()
-            onCreate(this@RTCActivity, glv_video)
+
+            val kodein = Kodein {
+                bind<Context>() with singleton { this@RTCActivity }
+                bind<GLSurfaceView>() with singleton { glv_video }
+            }
+            onCreate(kodein)
         }
 
+        val roomName = intent.getStringExtra("roomName")
         tv_title.text = roomName
         ll_hud_bottom.visibility = View.INVISIBLE
         tv_sending_message.setOnClickListener { clickedSendingMessage() }
@@ -166,7 +163,7 @@ class RTCActivity : BaseActivity(), LazyKodeinAware {
     override fun onDestroy() {
         viewModel.terminate()
         viewModel.onDestroy()
-        Scopes.UserData.perRoomUserData.remove(roomName)
+//        Scopes.UserData.perRoomUserData.remove(roomName)
         super.onDestroy()
     }
 
@@ -204,9 +201,5 @@ class RTCActivity : BaseActivity(), LazyKodeinAware {
             tv_sender.text = chatMessage.sender
             tv_message.text = chatMessage.message
         }
-    }
-
-    companion object {
-        val roomKodeins by lazy { mutableMapOf<String/*room name*/, Kodein>() }
     }
 }

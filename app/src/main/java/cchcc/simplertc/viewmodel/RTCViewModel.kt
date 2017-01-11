@@ -1,25 +1,21 @@
 package cchcc.simplertc.viewmodel
 
-import android.content.Context
-import android.opengl.GLSurfaceView
 import cchcc.simplertc.model.ChatMessage
+import com.github.salomonbrys.kodein.Kodein
 import rx.Observable
 
-interface RTCViewModel {
+interface RTCViewModel : LifeCycle {
 
     sealed class Event {
-        class Connected() : Event()
+        class Connected : Event()
         class Chat(val message: ChatMessage) : Event()
     }
 
-    val observable: Observable<Event>
+    val eventObservable: Observable<Event>
 
-    fun onCreate(context: Context, glv_video: GLSurfaceView)
-
-    fun onDestroy()
+    override fun onCreate(kodein: Kodein)
+    override fun onDestroy()
 
     fun sendChatMessage(msg: String)
-
     fun terminate()
-
 }

@@ -7,6 +7,8 @@ import cchcc.simplertc.model.ChatMessage
 import cchcc.simplertc.model.ICEServer
 import cchcc.simplertc.model.RTCWebSocket
 import cchcc.simplertc.model.SignalMessage
+import com.github.salomonbrys.kodein.Kodein
+import com.github.salomonbrys.kodein.instance
 import org.webrtc.*
 import rx.Observable
 import rx.Subscription
@@ -14,15 +16,14 @@ import rx.subjects.PublishSubject
 import java.util.*
 import java.util.regex.Pattern
 
-class RTCViewModelImpl : RTCViewModel {
+class RTCViewModelImpl(private val rtcWebSocket: RTCWebSocket) : RTCViewModel {
 
-    private val rtcWebSocket: RTCWebSocket
     private lateinit var rtcWebSocketSubscription: Subscription
     private val eventSubject: PublishSubject<RTCViewModel.Event> by lazy {
         PublishSubject.create<RTCViewModel.Event>()
     }
 
-    override val observable: Observable<RTCViewModel.Event> by lazy {
+    override val eventObservable: Observable<RTCViewModel.Event> by lazy {
         eventSubject.asObservable()
     }
 
@@ -35,11 +36,10 @@ class RTCViewModelImpl : RTCViewModel {
     private var localRender: VideoRenderer.Callbacks? = null
     private var rtcAudioManager: RTCAudioManager? = null
 
-    constructor(rtcWebSocket: RTCWebSocket) {
-        this.rtcWebSocket = rtcWebSocket
-    }
+    override fun onCreate(kodein: Kodein) {
 
-    override fun onCreate(context: Context, glv_video: GLSurfaceView) {
+        val context: Context = kodein.instance()
+        val glv_video: GLSurfaceView = kodein.instance()
         PeerConnectionFactory.initializeAndroidGlobals(context, true, true, false)
         VideoRendererGui.setView(glv_video) {}
 
@@ -70,7 +70,7 @@ class RTCViewModelImpl : RTCViewModel {
         val audioTrack = peerConnectionFactory.createAudioTrack("audioTrack", audioSource)
         localMediaStream.addTrack(audioTrack)
 
-        rtcWebSocketSubscription = rtcWebSocket.observable.subscribe({
+        rtcWebSocketSubscription = rtcWebSocket.messageObservable.subscribe({
             when (it) {
                 is SignalMessage.startAsCaller -> startRTC(true, it.ice)
                 is SignalMessage.startAsCallee -> startRTC(false, it.ice)
@@ -117,7 +117,7 @@ class RTCViewModelImpl : RTCViewModel {
 
         val iceListToParam = iceList.map {
             PeerConnection.IceServer(it.uri, it.username, it.password)
-        }.toList()
+        }
 
         val pcConfig = PeerConnection.RTCConfiguration(iceListToParam).apply {
             tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED
