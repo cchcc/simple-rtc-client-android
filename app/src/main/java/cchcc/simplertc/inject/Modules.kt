@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 
 val okHttpClientModule = Kodein.Module {
-    bind<OkHttpClient>() with singleton { OkHttpClient.Builder().readTimeout(0, TimeUnit.SECONDS).build() }
+    bind<OkHttpClient>() with singleton { OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(0, TimeUnit.SECONDS).build() }
 }
 
 val objectMapperModule = Kodein.Module {
