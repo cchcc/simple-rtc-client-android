@@ -34,7 +34,7 @@ class RTCActivity : BaseActivity(), KodeinInjected {
     override val injector: KodeinInjector = KodeinInjector()
 
     private val viewModel: RTCViewModel by instance()
-    private val chatListAdapter: ChatListAdapter by lazy { ChatListAdapter() }
+    private val chatListAdapter: ChatListAdapter by lazy { ChatListAdapter(this) }
     private var passedTimeSubscript: Subscription? = null
     private val fadeOutHudLayoutAnimation: Animation by lazy {
         AnimationUtils.loadAnimation(this, R.anim.fadeout).apply {
@@ -108,7 +108,7 @@ class RTCActivity : BaseActivity(), KodeinInjected {
             is RTCViewModel.Event.Connected -> {
                 tv_waiting.visibility = View.GONE
                 ll_hud_bottom.visibility = View.VISIBLE
-                chatListAdapter.addAndNotify(ChatMessage(Date(), "system", "Start"))
+                addMessageToListView(ChatMessage(Date(), "system", "Start"))
 
                 passedTimeSubscript = Observable.interval(1, TimeUnit.SECONDS).startWith(0)
                         .observeOn(AndroidSchedulers.mainThread())
@@ -121,16 +121,21 @@ class RTCActivity : BaseActivity(), KodeinInjected {
                     iv_received_message.visibility = View.VISIBLE
                     iv_received_message.startAnimationTada()
                 }
-                chatListAdapter.addAndNotify(event.message)
+                addMessageToListView(event.message)
             }
         }
+    }
+
+    private fun addMessageToListView(chatMessage: ChatMessage) {
+        chatListAdapter.addAndNotify(chatMessage)
+        rv_chat.scrollToPosition(chatListAdapter.list.size - 1)
     }
 
     private fun terminatedRTC() {
         tv_sending_message.setOnClickListener(null)
         tv_sending_message.text = getString(R.string.terminated)
         passedTimeSubscript?.unsubscribe()
-        chatListAdapter.addAndNotify(ChatMessage(Date(), "system", getString(R.string.terminated)))
+        addMessageToListView(ChatMessage(Date(), "system", getString(R.string.terminated)))
         toast(R.string.terminated)
     }
 
@@ -163,7 +168,6 @@ class RTCActivity : BaseActivity(), KodeinInjected {
     override fun onDestroy() {
         viewModel.terminate()
         viewModel.onDestroy()
-//        Scopes.UserData.perRoomUserData.remove(roomName)
         super.onDestroy()
     }
 
@@ -175,9 +179,9 @@ class RTCActivity : BaseActivity(), KodeinInjected {
                 .show()
     }
 
-    inner class ChatListAdapter : RecyclerView.Adapter<ChatListAdapter.ViewHolder>() {
+    class ChatListAdapter(val context: Context) : RecyclerView.Adapter<ChatListAdapter.ViewHolder>() {
 
-        private val list = mutableListOf<ChatMessage>()
+        val list = mutableListOf<ChatMessage>()
         private val chatDateFormat: SimpleDateFormat by lazy {
             SimpleDateFormat("HH:mm", Locale.getDefault())
         }
@@ -187,11 +191,10 @@ class RTCActivity : BaseActivity(), KodeinInjected {
         fun addAndNotify(chatMessage: ChatMessage) {
             list.add(chatMessage)
             notifyDataSetChanged()
-            rv_chat.scrollToPosition(list.size - 1)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup?, viewType: Int): ViewHolder =
-                ViewHolder(LayoutInflater.from(this@RTCActivity).inflate(R.layout.li_chat_message, parent, false))
+                ViewHolder(LayoutInflater.from(context).inflate(R.layout.li_chat_message, parent, false))
 
         override fun getItemCount(): Int = list.size
 

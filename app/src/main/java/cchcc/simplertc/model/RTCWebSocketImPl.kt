@@ -71,7 +71,6 @@ class RTCWebSocketImpl(val objectMapper: ObjectMapper, okHttpClient: OkHttpClien
         webSocket = null
     }
 
-
     fun SignalMessage.toJsonString(): String = objectMapper.writeValueAsString(this)
 
     fun String.toSignalMessage(): SignalMessage? = objectMapper.let {

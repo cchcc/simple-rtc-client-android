@@ -125,10 +125,12 @@ class MainActivity : AppCompatActivity(), KodeinInjected {
                             is SignalMessage.roomIsFull -> {
                                 simpleAlert("room \"$roomName\" is full")
                                 subscription?.unsubscribe()
+                                Thread { rtcWebSocket.close() }.start()
                             }
                         }
                     }, {
                         simpleAlert("${it.message}")
+                        Thread { rtcWebSocket.close() }.start()
                     }, { simpleAlert("connection closed") }
                     )
         }

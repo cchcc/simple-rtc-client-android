@@ -51,7 +51,7 @@ class RTCAudioManager(private val context: Context) {
         unregisterForWiredHeadsetIntentBroadcast()
         setSpeakerphoneOn(savedIsSpeakerPhoneOn)
         setMicrophoneMute(savedIsMicrophoneMute)
-        audioManager.setMode(savedAudioMode)
+        audioManager.mode = savedAudioMode
         audioManager.abandonAudioFocus(null)
     }
 
@@ -88,7 +88,7 @@ class RTCAudioManager(private val context: Context) {
 //                val microphone = intent.getIntExtra("microphone", HAS_NO_MIC)
 //                val name = intent.getStringExtra("name")
 
-                val hasWiredHeadset = if (state == STATE_PLUGGED) true else false
+                val hasWiredHeadset = state == STATE_PLUGGED
                 when (state) {
                     STATE_UNPLUGGED -> updateAudioDeviceState(hasWiredHeadset)
                     STATE_PLUGGED -> if (selectedAudioDevice != AudioDevice.WIRED_HEADSET) {
@@ -107,10 +107,9 @@ class RTCAudioManager(private val context: Context) {
     }
 
     private fun setSpeakerphoneOn(on: Boolean) {
-        val wasOn = audioManager.isSpeakerphoneOn()
-        if (wasOn == on) {
+        if (audioManager.isSpeakerphoneOn)
             return
-        }
+
         audioManager.setSpeakerphoneOn(on)
     }
 
