@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity(), KodeinInjected {
             return
         }
 
-        checkOrRequestPermissions(Manifest.permission.CAMERA) {
+        checkOrRequestPermissions(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO) {
             preferences.save { putString(G.PFK_ROOM_NAME, roomName) }
 
             val rtcWebSocket = createRTCWebSocket(roomName)
