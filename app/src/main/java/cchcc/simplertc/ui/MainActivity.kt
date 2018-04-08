@@ -138,6 +138,6 @@ class MainActivity : AppCompatActivity(), KodeinInjected {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        requestedPermissionResult(requestCode, permissions, grantResults)
+        requestedPermissionResult(requestCode, grantResults)
     }
 }
