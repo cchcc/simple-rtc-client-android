@@ -10,6 +10,7 @@ import android.widget.Toast
 import cchcc.simplertc.R
 import cchcc.simplertc.ui.LoadingDialog
 import com.github.salomonbrys.kodein.android.appKodein
+import com.github.salomonbrys.kodein.instance
 import com.github.salomonbrys.kodein.with
 
 fun Context.toast(text: CharSequence, duration: Int = Toast.LENGTH_SHORT): Unit
