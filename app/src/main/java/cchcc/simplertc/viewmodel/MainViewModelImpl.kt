@@ -5,13 +5,7 @@ import com.github.salomonbrys.kodein.Kodein
 import com.github.salomonbrys.kodein.KodeinInjected
 import com.github.salomonbrys.kodein.KodeinInjector
 import com.github.salomonbrys.kodein.instance
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody
-import okhttp3.ws.WebSocket
-import okhttp3.ws.WebSocketCall
-import okhttp3.ws.WebSocketListener
+import okhttp3.*
 import okio.Buffer
 import rx.Observable
 import rx.lang.kotlin.observable
@@ -28,26 +22,23 @@ class MainViewModelImpl : MainViewModel, KodeinInjected {
     }
 
     override fun checkServerIsOn(): Observable<Boolean> = observable { subscriber ->
-        WebSocketCall.create(okHttpClient, Request.Builder().url(url).build())
-                .enqueue(object : WebSocketListener {
-                    override fun onOpen(webSocket: WebSocket?, response: Response?) {
-                        webSocket?.close(1000, "")
-                        subscriber.onNextAndCompleted(true)
-                    }
+        okHttpClient.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response?) {
+                webSocket.close(1000, null)
+                subscriber.onNextAndCompleted(true)
+            }
 
-                    override fun onPong(payload: Buffer?) {
-                    }
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                webSocket.close(1000, null)
+            }
 
-                    override fun onClose(code: Int, reason: String?) {
-                        subscriber.onNextAndCompleted(false)
-                    }
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                subscriber.onNextAndCompleted(false)
+            }
 
-                    override fun onFailure(e: IOException?, response: Response?) {
-                        subscriber.onNextAndCompleted(false)
-                    }
-
-                    override fun onMessage(message: ResponseBody?) {
-                    }
-                })
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                subscriber.onNextAndCompleted(false)
+            }
+        })
     }
 }

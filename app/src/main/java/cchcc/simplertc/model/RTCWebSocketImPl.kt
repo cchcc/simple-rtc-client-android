@@ -2,20 +2,13 @@ package cchcc.simplertc.model
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.*
-import okhttp3.ws.WebSocket
-import okhttp3.ws.WebSocketCall
-import okhttp3.ws.WebSocketListener
-import okio.Buffer
+import okio.ByteString
 import rx.Observable
 import rx.subjects.ReplaySubject
-import java.io.IOException
 
 class RTCWebSocketImpl(val objectMapper: ObjectMapper, okHttpClient: OkHttpClient, serverUrl: String,  roomName: String) : RTCWebSocket {
 
     private var webSocket: WebSocket? = null
-    private var createWebSocketCall: ()->WebSocketCall = {
-        WebSocketCall.create(okHttpClient, Request.Builder().url(serverUrl).build())
-    }
     private val receiveSubject: ReplaySubject<SignalMessage> by lazy {
         ReplaySubject.create<SignalMessage>()
     }
@@ -25,49 +18,52 @@ class RTCWebSocketImpl(val objectMapper: ObjectMapper, okHttpClient: OkHttpClien
 
     override val messageObservable: Observable<SignalMessage> by lazy {
         receiveSubject.doOnSubscribe {
-            if (webSocket == null)
-                createWebSocketCall.invoke().enqueue(webSocketListener)
+            if (webSocket == null) {
+                okHttpClient.newWebSocket(Request.Builder().url(serverUrl).build(), webSocketListener)
+            }
         }
     }
 
     private val webSocketListener: WebSocketListener by lazy {
-        object : WebSocketListener {
-            override fun onOpen(webSocket: WebSocket, response: Response?) {
+        object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
                 this@RTCWebSocketImpl.webSocket = webSocket
                 send(SignalMessage.room(roomName))
             }
 
-            override fun onPong(payload: Buffer?) {
-            }
-
-            override fun onClose(code: Int, reason: String?) {
-                webSocket = null
-                receiveSubject.onCompleted()
-            }
-
-            override fun onFailure(e: IOException?, response: Response?) {
-                receiveSubject.onError(e)
-            }
-
-            override fun onMessage(resBody: ResponseBody?) {
-                val msgString = resBody?.string()
-                val msg = msgString?.toSignalMessage()
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                val msg = text.toSignalMessage()
                 if (msg != null)
                     receiveSubject.onNext(msg)
                 else {
                     close()
-                    receiveSubject.onError(Exception("unexpected type : $msgString"))
+                    receiveSubject.onError(Exception("unexpected type : $text"))
                 }
+            }
+
+            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {}
+
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                webSocket.close(1000, null)
+            }
+
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                this@RTCWebSocketImpl.webSocket = null
+                receiveSubject.onCompleted()
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                receiveSubject.onError(t)
             }
         }
     }
 
     override fun send(message: SignalMessage) {
-        webSocket?.sendMessage(RequestBody.create(WebSocket.TEXT, message.toJsonString()))
+        webSocket?.send(message.toJsonString())
     }
 
     override fun close() {
-        webSocket?.close(1000, "bye")
+        webSocket?.close(1000, null)
         webSocket = null
     }
 

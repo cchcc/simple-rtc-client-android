@@ -52,7 +52,7 @@ class RecyclerViewMatcher(val viewId: Int) {
                 if (targetViewId == -1) {
                     return view === childView
                 } else {
-                    val targetView = childView!!.findViewById(targetViewId)
+                    val targetView = childView!!.findViewById<View>(targetViewId)
                     return view === targetView
                 }
 

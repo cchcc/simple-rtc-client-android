@@ -13,6 +13,7 @@ import cchcc.simplertc.model.SignalMessage
 import cchcc.simplertc.ui.MainActivity
 import cchcc.simplertc.viewmodel.MainViewModel
 import com.github.salomonbrys.kodein.Kodein
+import com.github.salomonbrys.kodein.bind
 import com.github.salomonbrys.kodein.factory
 import com.github.salomonbrys.kodein.singleton
 import org.junit.Rule

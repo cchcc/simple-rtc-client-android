@@ -11,6 +11,7 @@ import cchcc.simplertc.model.ChatMessage
 import cchcc.simplertc.ui.RTCActivity
 import cchcc.simplertc.viewmodel.RTCViewModel
 import com.github.salomonbrys.kodein.Kodein
+import com.github.salomonbrys.kodein.bind
 import com.github.salomonbrys.kodein.instance
 import com.github.salomonbrys.kodein.singleton
 import org.junit.Rule

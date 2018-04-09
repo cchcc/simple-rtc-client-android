@@ -49,8 +49,7 @@ dependencies {
     implementation 'com.android.support:recyclerview-v7:26.1.0'
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.8.4'
-    implementation 'com.squareup.okhttp3:okhttp:3.4.1'
-    implementation 'com.squareup.okhttp3:okhttp-ws:3.4.1'
+    implementation 'com.squareup.okhttp3:okhttp:3.10.0'
     implementation 'com.github.salomonbrys.kodein:kodein:4.1.0'
     implementation 'com.github.salomonbrys.kodein:kodein-android:4.1.0'
     implementation 'com.github.salomonbrys.kodein:kodein-conf:4.1.0'
